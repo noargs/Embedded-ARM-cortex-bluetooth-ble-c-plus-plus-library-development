@@ -1,1 +1,1 @@
-# Embedded ARM Cortex Modern C++ Bare-metal
+# Embedded ARM Cortex C++ BLE Bluetooth Library for HM-10
