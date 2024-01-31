@@ -63,7 +63,7 @@ Three main blocks of the architecutre.
 * **Controller** A physical device that can transmit and receive radio signals      
           
 					
-<img src="bluetooth_stack_split.png" alt="Bluetooth stack splits" title="Bluetooth stack splits">						
+<img src="images/bluetooth_stack_split.png" alt="Bluetooth stack splits" title="Bluetooth stack splits">						
 					
 Each block is made of layers. (Layer: A part of a system that fulfills a specific function)			
           
