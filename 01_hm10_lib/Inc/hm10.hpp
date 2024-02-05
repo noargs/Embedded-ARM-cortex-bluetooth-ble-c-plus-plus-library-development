@@ -182,6 +182,10 @@ public:
   std::uint16_t get_service_uuid();
   bool set_service_uuid( std::uint16_t new_uuid);
 
+  /* get/set RF communication mode */
+  void set_rf_comm_mode (bool en);
+  bool rf_comm_mode() const;
+
   // get device_version
   device_version firmware_version();
 
@@ -228,7 +232,7 @@ private:
   void copy_cmd_to_buff(char const* cmd_pattern, ...);
 
   // copy a formatted command into buffer using va_list
-  void copy_cmd_to_buff(char const* cmd_pattern, std::va_list args);
+  void copy_cmd_to_buff_varg(char const* cmd_pattern, std::va_list args);
 
   // compare a string with the response
   bool compare_with_resp(char const* str) const;
@@ -292,7 +296,8 @@ private:
   /* callback for device disconnection */
   device_disconnected_t m_device_disconn_callback {nullptr};
 
-
+  // RF communication mode
+  bool m_rf_comm_mode {false};
 
 
 };
