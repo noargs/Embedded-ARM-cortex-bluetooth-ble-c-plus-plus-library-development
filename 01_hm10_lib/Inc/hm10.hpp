@@ -45,7 +45,7 @@ public:
   void set_device_conn_callback(device_connected_t callback);
 
   // set callback for device disconnection
-  void set_device_disconnection_callback(device_disconnected_t callback);
+  void set_device_disconn_callback(device_disconnected_t callback);
 
   // Boot UART
   int start_uart();
@@ -171,7 +171,7 @@ public:
   bool set_reliable_advertising(bool en);
 
   // get/set device role
-  role role();
+  role get_role();
   bool set_role(role new_role);
 
   // get/set bond mode
@@ -257,10 +257,10 @@ private:
   std::size_t m_message_datalen {0};
 
   /* pointer to start of message in Rx buffer */
-  char* m_rx_buff_start_ptr {&m_rxbuff[0]};
+  char* m_rx_buff_start_ptr {&m_rxbuffer[0]};
 
   /* pointer to end of message in Rx buffer */
-  char* m_rx_buff_end_ptr {&m_rxbuff[0] + HM10_BUFFER_SIZE};
+  char* m_rx_buff_end_ptr {&m_rxbuffer[0] + HM10_BUFFER_SIZE};
 
   /* flag to indicate Rx in progress */
   bool m_rx_in_progress {false};
@@ -287,7 +287,7 @@ private:
   data_callback_t m_data_callback {nullptr};
 
   /* callback for device connection */
-  device_connected_t m_dev_conn_callback {nullptr};
+  device_connected_t m_device_conn_callback {nullptr};
 
   /* callback for device disconnection */
   device_disconnected_t m_device_disconn_callback {nullptr};

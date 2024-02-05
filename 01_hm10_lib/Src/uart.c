@@ -9,7 +9,6 @@ DMA_HandleTypeDef hdma_usart1_tx;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
-static void uart_write(int ch);
 
 void hm10_uart_init(void)
 {
@@ -45,13 +44,7 @@ void debug_uart_init(void)
   }
 }
 
-int __io_putchar(int ch)
-{
-  uart_write(ch);
-  return ch;
-}
-
-static void uart_write(int ch)
+void uart_write(int ch)
 {
   // Confirm data register is empty
   while(!(USART2->SR & USART_SR_TXE));
