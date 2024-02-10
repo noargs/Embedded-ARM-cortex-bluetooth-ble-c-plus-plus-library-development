@@ -19,7 +19,7 @@ namespace HM10
 	baud_invalid     = 9,
   };
 
-  constexpr std::uint32_t baudrate_value[] = {      // `supported_baudrate` lookup table
+  constexpr std::uint32_t baudrate_values[] = {      // `supported_baudrate` lookup table
 	9600, 19200, 38400, 57600, 115200, 4800, 2400, 1200, 230400, 0
   };
 

@@ -5,7 +5,11 @@
 #include <cstdlib>
 
 #include "hm10_config.hpp"
+#include "hm10_debug.hpp"
 #include "main.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
 
 #define HM10_BUFFER_SIZE      128
 
@@ -51,8 +55,8 @@ public:
   int start_uart();
 
   // interrupt handlers for rx and tx
-  void rx_compltd();
-  void tx_compltd();
+  void rx_cmpltd();
+  void tx_cmpltd();
 
   // return busy state
   bool is_busy() const;
@@ -213,14 +217,14 @@ private:
 
   int transmit_buff();
 
-  void wait_for_tx_complt() const;
+  void wait_for_tx_cmplt() const;
 
   void start_rx_to_buff();
   void abort_receive();
   bool receive_to_buff();
 
   // block until Rx completion with a default timeout
-  bool wait_for_rx_complt(std::uint32_t max_time=1000) const;
+  bool wait_for_rx_cmplt(std::uint32_t max_time=1000) const;
 
   // Tx and Rx wait time
   bool tx_and_rx(std::uint32_t rx_wait_time=1000);
@@ -241,7 +245,7 @@ private:
   long extract_number_from_resp(std::size_t offset=7, int base=10) const;
 
   // copy string from response message to buffer
-  void copy_str_from_resp(std::size_t offset, char* destination) const;
+  void copystr_from_resp(std::size_t offset, char* destination) const;
 
   // set UART baudrate
   void set_uart_baudrate(std::uint32_t new_baud) const;

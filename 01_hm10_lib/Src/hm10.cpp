@@ -1,4 +1,6 @@
 #include "hm10.hpp"
+#include <cstring>
+#include <cstdio>
 
 namespace HM10
 {
@@ -52,16 +54,16 @@ namespace HM10
 	return HAL_UART_Receive_DMA(UART(), reinterpret_cast<uint8_t*>(&m_rxbuffer[0]), buffer_size());
   }
 
-  void HM10::rx_compltd()
+  void HM10::rx_cmpltd()
   {
 	// calculate the memory address where the incoming message ends
-	m_rx_buffer_end_ptr = &m_rxbuffer[0] + (buffer_size - __HAL_DMA_GET_COUNTER(UART()->hdmarx));
+	char* const message_end_ptr = &m_rxbuffer[0] + (buffer_size() - __HAL_DMA_GET_COUNTER(UART()->hdmarx));
 
 	// check if the DMA has rolled over the buffer during the reception
-	if (m_rx_buff_start_ptr <= m_rx_buff_end_ptr)
+	if (m_rx_buff_start_ptr <= message_end_ptr)
 	{
 	  // if not, compute the length of the message
-	  const std::size_t message_len = m_rx_buff_end_ptr - m_rx_buff_start_ptr;
+	  const std::size_t message_len = message_end_ptr - m_rx_buff_start_ptr;
 
 	  // copy the message to a buffer
 	  std::memcpy(&m_message_buff[0], m_rx_buff_start_ptr, message_len);
@@ -78,13 +80,13 @@ namespace HM10
 	  const std::size_t msg_prefix_len = m_rx_buff_end_ptr - m_rx_buff_start_ptr;
 
 	  // compute the length of the message suffix (after rollover)
-	  const std::size_t msg_suffix_len = m_rx_buff_end_ptr - &m_rxbuffer[0];
+	  const std::size_t msg_suffix_len = message_end_ptr - &m_rxbuffer[0];
 
 	  // copy the prefix to a buffer
 	  std::memcpy(&m_message_buff[0], m_rx_buff_start_ptr, msg_prefix_len);
 
 	  // append the suffix to the buffer
-	  std::membpy(&m_message_buff[msg_prefix_len], &m_rxbuffer[0], msg_suffix_len);
+	  std::memcpy(&m_message_buff[msg_prefix_len], &m_rxbuffer[0], msg_suffix_len);
 
 	  // add a null-terminator to make valid string
 	  m_message_buff[msg_prefix_len + msg_suffix_len] = '\0';
@@ -117,7 +119,7 @@ namespace HM10
 	m_rx_in_progress = false;
   }
 
-  HM10::tx_compltd()
+  void HM10::tx_cmpltd()
   {
 	m_tx_in_progress = false;
   }
@@ -176,7 +178,7 @@ namespace HM10
 	  m_is_connected = true;
 
 	  // copy the MAC address from the received response to `m_connected_mac.address` the MAC address starts at index 8 in the response
-	  copy_str_from_resp(8, m_connected_mac.mac_address);
+	  copystr_from_resp(8, m_connected_mac.mac_address);
 
 	  // check if `m_dev_conn_callback` is not a null pointer (i.e. it points to a function)
 	  if (m_device_conn_callback != nullptr)
@@ -281,6 +283,216 @@ namespace HM10
 	// clean up the argument list `args` to release the memory occupied by it
 	va_end(args);
   }
+
+  bool HM10::tx_and_rx(std::uint32_t rx_wait_time)
+  {
+	// begin the receive operation
+	start_rx_to_buff();
+
+	// transmit the buffer's contents; if unsuccessful, log an error and return false
+	if (transmit_buff() != 0)
+	{
+	  debug_log_level2("tx error");
+	  return false;
+	}
+
+	// wait for the receive operation to complete; if it times out, log an error and return false
+	if (wait_for_rx_cmplt(rx_wait_time) == false)
+	{
+	  debug_log_level2("rx timeout");
+	  return false;
+	}
+	// if function execution reaches here, both transmit and receive were successfull
+	return true;
+  }
+
+  void HM10::start_rx_to_buff()
+  {
+	m_rx_in_progress = true;
+  }
+
+  // `transmit_buff` attempts to transmit data using UART with DMA
+  // and returns an integer indicating the result/status of the transmission attempt
+  int HM10::transmit_buff()
+  {
+	// set a member flag `m_tx_in_progress` to true, signaling that a transmission is about to take place
+	m_tx_in_progress = true;
+
+	// log a debug message with level 2 verbosity, indicating the transmission attempt
+	// and displaying the content of `m_txbuffer` that is to be transmitted
+	debug_log_level2("transmitting %s", m_txbuffer);
+
+	// vall the function `HAL_UART_Transmit_DMA to initiate the UART transmission using DMA
+	// pass the UART handler, a pointer to the data to be transmitted (m_txbuffer) and the length of the data (m_tx_datalen)
+	// store the result of the transmission attempt in `transmit_result`
+	int transmit_result = HAL_UART_Transmit_DMA(UART(), reinterpret_cast<uint8_t*>(&m_txbuffer[0]), m_tx_datalen);
+
+	// check if the tranmission was initiated sucessfully (transmit_result == HAL_OK)
+	if (transmit_result == HAL_OK)
+	{
+	  wait_for_tx_cmplt();
+	}
+	else
+	{ // if the transmission initation failed
+	  // call the `tx_compltd` member function to reset flag
+	  tx_cmpltd();
+	}
+
+	// return the result of the transmission attempt
+	return transmit_result;
+  }
+
+  void HM10::wait_for_tx_cmplt() const
+  {
+	while (is_tx())
+	{
+	  vTaskDelay(1);
+	}
+  }
+
+  bool HM10::reboot(bool waitforstartup)
+  {
+	copy_cmd_to_buff("AT+RESET");
+
+	if (!tx_and_rx())
+	{
+	  return false;
+	}
+
+	// check if a factory reboot is pending
+	if (m_factory_reboot_pending)
+	{
+	  // set `new_baudrate` using the array (`baudrate_values`) and the enumerator (`default_baudrate`)
+	  // convert `default_baudrate` to an unsigned 8-bit integar and uses it as an index to get a value from the array
+	  std::uint32_t const new_baudrate = baudrate_values[static_cast<std::uint8_t>(default_baudrate)];
+
+	  // log a debug message indicating that a factory reboot is in progress and showing the new default baudrate
+	  debug_log_level2("Factory reboot running... resetting UART baudrate to default (%d)", (int)new_baudrate);
+
+	  // call `set_uart_baudrate` with `new_baudrate` as a parameter
+	  // this function sets the UART baudrate of the HM10 module to `new_baudrate`
+	  set_uart_baudrate(new_baudrate);
+
+	  // update member variables `m_current_baudrate` and `m_new_baudrate` to `default_baudrate`
+	  m_current_baudrate = default_baudrate;
+	  m_new_baudrate = default_baudrate;
+
+	  // set `m_factory_reboot_pending` to false, as the factory reboot process is now complete
+	  m_factory_reboot_pending = false;
+	}
+	else if (m_current_baudrate != m_new_baudrate)
+	{
+	  // set `new_baudrate` using the array `baudrate_values` and the member variable `m_new_baudrate` as an index after
+	  std::uint32_t const new_baudrate = baudrate_values[static_cast<std::uint8_t>(m_new_baudrate)];
+
+	  // log a debug message indicating a reboot is occurring due to a baudrate change and showing the new baudrate
+	  debug_log("Rebooting due to baudrate change..., new baudrate = %d", (int)new_baudrate);
+
+	  // call `set_uart_baudrate` with `new_baudrate` as a parameter
+	  set_uart_baudrate(new_baudrate);
+
+	  // update `m_current_baudrate` to be equal to `m_new_baudrate`
+	  m_current_baudrate = m_new_baudrate;
+	}
+
+	// if `wait_for_startup` is true, enter a loop to wait for the device to be responsive "alive" after rebooting
+	if (waitforstartup)
+	{
+	  vTaskDelay(800);
+	  debug_log("Starting alive check loop.");
+
+	  // enter a loop which continues until `is_alive()` returns true
+	  while (!is_alive())
+	  {
+		vTaskDelay(100);
+	  }
+	}
+
+	// log a debug message indicating that the reboot process was successful
+	debug_log_level2("Reboot successful!");
+	return true;
+  }
+
+
+  bool HM10::factory_reset(bool waitforstartup)
+  {
+	if (tx_and_check_resp("OK+RENEW", "AT+RENEW"))
+	{
+	  m_factory_reboot_pending = true;
+	  return reboot(waitforstartup);
+	}
+	else
+	{
+	  return false;
+	}
+  }
+
+  bool HM10::set_baudrate(supported_baudrate new_baud, bool rebootimmediately, bool waitforstartup)
+  {
+	if (new_baud != supported_baudrate::baud_invalid)
+	{
+	  copy_cmd_to_buff("AT+BAUD%d", static_cast<std::uint8_t>(new_baud));
+	  if (!tx_and_rx())
+	  {
+		return false;
+	  }
+
+	  m_new_baudrate = new_baudrate;
+
+	  if (rebootimmediately)
+	  {
+		return reboot(waitforstartup);
+	  }
+	  return compare_with_resp("OK+SET");
+	}
+	return false;
+  }
+
+  /* retrieve the current baud rate setting from the HM10 module. */
+  supported_baudrate HM10::get_baudrate()
+  {
+	return m_current_baudrate;
+  }
+
+  /* `address`: a pointer to a constant character, representing the MAC address to be set */
+  bool HM10::set_mac_address(char const* address)
+  {
+	// log a debug message stating that the MAC address is being set
+	// and include the desired MAC address (`address`) in the log message
+	debug_log("Setting MAC address to %s", address);
+
+	// call the member function `tx_and_check_resp` with parameters "OK+Set" and "AT+ADDR%s" and `address`
+	// the function sends the command "AT+ADDR<address>" to the device, waits for a response
+	// and checks if the reponse starts with "OK+Set"
+	// retun true if the response is as expected; otherwise return false
+	return tx_and_check_resp("OK+Set", "AT+ADDR%s", address);
+  }
+
+  /* retrieve the current MAC address from the HM10 module */
+  mac_address HM10::get_mac_address()
+  {
+	mac_address addr {};
+
+	// log a debug message indicating the intention to check the MAC address
+	debug_log("Checking MAC address");
+
+	// call the member function `tx_and_check_resp` with paramters "OK+ADDR" and "AT+ADDR?"
+	// send the command "AT+ADDR?" to the device and wait for a response
+	// and checks if the response starts with "OK+ADDR"
+	// if `tx_and_check_resp` returns true, indicating the response was as expected
+	if (tx_and_check_resp("OK+ADDR", "AT+ADDR?"))
+	{
+	  // call the member function `copy_str_from_resp` with parameters 8 and `addr.address`
+	  // the function copies a substring from the received response message to `addr.address`
+	  // starting from the 9th character (since we start counting from 0)
+	  // the actual MAC address follows "OK+ADDR:" in the response hence the offset of 8 to omit this part
+	  copy_str_from_resp(8, addr.mac_address);
+	}
+
+	// return the `addr` instance which now contains the MAC address if the retrieval was successful
+	return addr;
+  }
+
 
 
 
