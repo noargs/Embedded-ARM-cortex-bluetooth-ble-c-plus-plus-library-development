@@ -584,7 +584,207 @@ namespace HM10
 	return false;
   }
 
+  conn_interval HM10::get_min_conn_interval()
+  {
+	debug_log("Checking minimum connection interval");
+	if (tx_and_check_resp("OK+Get", "AT+COMI?"))
+	{
+	  return static_cast<conn_interval>(extract_number_from_resp());
+	}
+	return conn_interval::conn_invalid;
+  }
 
+  conn_interval HM10::set_min_conn_interval(conn_interval interval)
+  {
+	if (interval != conn_interval::conn_invalid)
+	{
+	  debug_log("Setting minimum connection interval to %d", (int)interval);
+	  return tx_and_check_resp("OK+Set", "AT+COMI%d", static_cast<std::uint8_t>(interval));
+	}
+	return false;
+  }
+
+  conn_interval HM10::get_max_conn_interval()
+  {
+	debug_log("Checking maximum connection interval");
+	if (tx_and_check_resp("OK+Get", "AT+COMA?"))
+	{
+	  return static_cast<conn_interval>(extract_number_from_resp());
+	}
+	return conn_interval::conn_invalid;
+  }
+
+  conn_interval HM10::set_max_conn_interval(conn_interval max_interval)
+  {
+	if (max_interval != conn_interval::conn_invalid)
+	{
+	  debug_log("Setting maximum connection interval to %d", (int)max_interval);
+	  return tx_and_check_resp("OK+Set", "AT+COMI%d", static_cast<std::uint8_t>(max_interval));
+	}
+	return false;
+  }
+
+  mac_address HM10::get_whitelisted_mac(std::uint8_t id)
+  {
+	mac_address mac {};
+
+	// check if `id` is not within the valid range [1, 3]
+	// if it's not in range return the (empty/default) mac_address structure immediately
+	if (id < 1 || id > 3)
+	{
+	  return mac;
+	}
+
+	debug_log("Checking whitelisted MAC #%d", id);
+
+	// `tx_and_check_resp` returns true when provided with "OK+AD" and formatted AT
+	// then proceed with the following block. this function send the AT command, "AT+AD[id]??" to the HM10
+	// expecting a response that starts with "OK+AD"
+	if (tx_and_check_resp("OK+AD", "AT+AD%d??", id))
+	{
+	  // use `copystr_from_resp` to copy a substring starting from index 8 of the response message
+	  // into the `address` field of the `mac` structure. This extracts the MAC address from the response
+	  copystr_from_resp(8, mac.mac_address);
+	}
+	// return the `mac` structure, which is either still containing the default values
+	// or has been updated with the MAC address retrieved
+	return mac;
+  }
+
+  bool HM10::set_whitelisted_mac(std::uint8_t id, char const* address)
+  {
+	debug_log("Setting whitelisted MAC #%d to %s", id, address);
+	return tx_and_check_resp("OK+AD", "AT+AD%d%s", id, address);
+  }
+
+  bool HM10::get_whitelist_state()
+  {
+	debug_log("Checking whitelist state");
+
+	// if the function `tx_and_check_resp` returns true when provided with "OK+Get" and "AT+ALLO?"
+	// then proceed with the following block. this function sends the AT command "AT+ALLO?"
+	// to the HM10 device, expecting a response that starts with "OK+Get"
+	if (tx_and_check_resp("OK+Get", "AT+ALLO?"))
+	{
+	  // extract a number from the received message using `extract_number_from_resp()`
+	  // and cast it to boolean then return it
+	  // this interprets a 1 or 0 from the response as true or false, indicating the whitelist status
+	  return static_cast<bool>(extract_number_from_resp());
+	}
+	// if the condition above is not met (i.e. the response did not start with "OK+Get")
+	// execute the following block
+	else
+	{
+	  return false;
+	}
+  }
+
+  bool HM10::set_whitelist_state(bool state)
+  {
+	debug_log("Setting whitelist state to %d", (state ? 1 : 0));
+
+	// call the function `tx_and_check_resp` with paramters "OK+Set" and a formatted AT command
+	// use a ternary operator to embed `1` in the AT command if `status` is true and `0` otherwise
+	// `tx_and_check_resp` sends the AT command "AT+ALLO<value>" to the HM10 device and expects a response
+	// starting with "OK+Set" to confirm the setting action. Return the result of this function call.
+	return tx_and_check_resp("OK+Set", "AT+ALLO%d", (state ? 1 : 0));
+  }
+
+  int HM10::get_slave_conn_latency()
+  {
+	debug_log("Checking slave connection latency");
+
+	// transmit and check the response from the connected device
+	if (tx_and_check_resp("OK+Get", "AT+COLA?"))
+	{
+	  return static_cast<int>(extract_number_from_resp());
+	}
+  }
+
+  bool HM10::set_slave_conn_latency(int latency)
+  {
+	if (latency < 0 || latency > 4)
+	{
+	  return false;
+	}
+
+	debug_log("Setting slave connection latency to %d", latency);
+
+	// transmit and check the response
+	return tx_and_check_resp("OK+Set", "AT+COLA%d", static_cast<std::uint8_t>(latency));
+  }
+
+  conn_timeout HM10::get_conn_superv_timeout()
+  {
+	debug_log("Checking connection supervision timeout");
+	if (tx_and_check_resp("OK+Get", "AT+COSU?"))
+	{
+	  return static_cast<conn_timeout>(extract_number_from_resp());
+	}
+	return conn_timeout::conn_timeout_invalid;
+  }
+
+  bool HM10::set_conn_superv_timeout(conn_timeout timeout)
+  {
+	if (timeout != conn_timeout::conn_timeout_invalid)
+	{
+	  debug_log("Setting connection supervision timeout to %d", static_cast<std::uint8_t>(timeout));
+	  return tx_and_check_resp("OK+Set", "AT+COSU%d", static_cast<std::uint8_t>(timeout));
+	}
+	return false;
+  }
+
+  bool HM10::get_update_conn()
+  {
+	debug_log("Checking status of connection updating");
+	if (tx_and_check_resp("OK+Get", "AT+COUP?"))
+	{
+	  return static_cast<bool>(extract_number_from_resp());
+	}
+	return false;
+  }
+
+  bool HM10::set_conn_updating(bool state)
+  {
+	debug_log("Setting connection updating to %d", static_cast<std::uint8_t>(state));
+	return tx_and_check_resp("OK+Set", "AT+COUP%d", static_cast<std::uint8_t>(state));
+  }
+
+  std::uint16_t HM10::get_characteristics_value()
+  {
+	debug_log("Getting characteristics value");
+	if (tx_and_check_resp("OK+Get", "AT+CHAR?"))
+	{
+	  return static_cast<std::uint16_t>(extract_number_from_resp(9, 16));
+	}
+	return 0x0000;
+  }
+
+  bool HM10::set_characteristics_value(std::uint16_t value)
+  {
+	if (value >= 0x0001 && value <= 0xFFFE)
+	{
+	  debug_log("Setting characteristics value to 0x%04X", value);
+	  return tx_and_check_resp("OK+Set", "AT+CHAR0x%04X", value);
+	}
+	return false;
+  }
+
+  bool HM10::get_notifications_state()
+  {
+	debug_log("Getting notifications sate");
+	if (tx_and_check_resp("OK+Get", "AT+NOTI?"))
+	{
+	  return static_cast<bool>(extract_number_from_resp());
+	}
+	return false;
+  }
+
+  bool HM10::set_notifications_state(bool enabled)
+  {
+	debug_log("Setting notifications state to %s", (enabled ? "true" : "false"));
+	return tx_and_check_resp("OK+Set", "AT+NOTI%d", (enabled ? 1 : 0));
+  }
 
 
 

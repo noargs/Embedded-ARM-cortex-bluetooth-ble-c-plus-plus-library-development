@@ -101,25 +101,25 @@ public:
   bool set_max_conn_interval(conn_interval interval);
 
   // get/set whitelist status
-  bool whitelist_en();
+  bool get_whitelist_state();
   bool set_whitelist_state(bool state);
 
   // get/set whitelist MAC
   // id: 1-3
-  mac_address get_whitelisted_mac(std::uint8_t id);
+  mac_address get_whitelist_mac(std::uint8_t id);
   bool set_whitelisted_mac(std::uint8_t id, char const* address);
 
   // get/set connection slave latency
   // range: 0-4
-  int conn_slave_latency();
-  bool set_conn_slave_latency(int latency);
+  int get_slave_conn_latency();
+  bool set_slave_conn_latency(int latency);
 
   // get/set connection supervision timeout
   conn_timeout get_conn_superv_timeout();
   bool set_conn_superv_timeout(conn_timeout timeout);
 
   // get/set connection updating
-  bool update_conn();
+  bool get_update_conn();
   bool set_conn_updating(bool state);
 
   // get/set characteristics value
@@ -127,8 +127,8 @@ public:
   bool set_characteristics_value(std::uint16_t value);
 
   // get/set notification state
-  bool get_notification_state();
-  bool set_notification_state(bool state);
+  bool get_notifications_state();
+  bool set_notifications_state(bool state);
 
   // clear last connected device address
   bool clear_last_connected();
