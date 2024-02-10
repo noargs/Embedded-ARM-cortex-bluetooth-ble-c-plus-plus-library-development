@@ -427,11 +427,11 @@ namespace HM10
 	}
   }
 
-  bool HM10::set_baudrate(supported_baudrate new_baud, bool rebootimmediately, bool waitforstartup)
+  bool HM10::set_baudrate(supported_baudrate new_baudrate, bool rebootimmediately, bool waitforstartup)
   {
-	if (new_baud != supported_baudrate::baud_invalid)
+	if (new_baudrate != supported_baudrate::baud_invalid)
 	{
-	  copy_cmd_to_buff("AT+BAUD%d", static_cast<std::uint8_t>(new_baud));
+	  copy_cmd_to_buff("AT+BAUD%d", static_cast<std::uint8_t>(new_baudrate));
 	  if (!tx_and_rx())
 	  {
 		return false;
@@ -486,11 +486,102 @@ namespace HM10
 	  // the function copies a substring from the received response message to `addr.address`
 	  // starting from the 9th character (since we start counting from 0)
 	  // the actual MAC address follows "OK+ADDR:" in the response hence the offset of 8 to omit this part
-	  copy_str_from_resp(8, addr.mac_address);
+	  copystr_from_resp(8, addr.mac_address);
 	}
 
 	// return the `addr` instance which now contains the MAC address if the retrieval was successful
 	return addr;
+  }
+
+  // function to get advertising interval
+  advert_interval HM10::get_advert_interval()
+  {
+	debug_log("Checking advertising interval");
+
+	// send the AT command "AT+ADVI?" to the HM10 module and check if the response start with "OK+Get"
+	// `tx_and_check_resp` send the AT command to the device, waits for a response
+	// and checks if the reponse matches the expected start sequence "OK+Get"
+	// if it returns true (indicating the response was as expected), enter the if block
+	if (tx_and_check_resp("OK+Get", "AT+ADVI?"))
+	{
+	  // extract a number from the response message, starting from the 8th character (index 7, counting f
+	  // and interpret it as a hexadecimal number. use the extracted number to construct and `advert_interval`
+	  // enumerator and return this value. the `ext_numb_from_resp` function is in charge of extracting
+	  // from the message buffer, considering the offset and base as provided (7 and 16 respectively)
+	  return static_cast<advert_interval>(extract_number_from_resp(7,16));
+	}
+	  // if the if block was not entered (meaning the response was not as expected)
+	  // return an `invalid_interval` enumerator of `advert_interval` type, indicating that
+	  // the advertising interval could not be determined
+	  return advert_interval::advert_invalid;
+  }
+
+  // function to set advertising interval
+  bool HM10::set_advert_interval(advert_interval interval)
+  {
+	// check if the provided advertising `interval` is not equal to `invalid_interval`
+	// this ensures that an attempt to set an invalid advertising interval is not made
+	if (interval != advert_interval::advert_invalid)
+	{
+	  // log a debug message stating the advertising interval being set
+	  // convert `interval` to a `uint8_t` and insert its value into the log message
+	  debug_log("Setting advertising interval to %d", static_cast<uint8_t>(interval));
+
+	  // `tx_and_check_resp` with a formatted AT command and the desired advertising
+	  // `tx_and_check_resp` sends the AT command "AT+ADVI<value>" (where <value> is the hexadecimal respresentation
+	  // of `interval`) to the HM10 device, waits for a response and check if the response starts with "OK+Set"
+	  // convert `interval` to a single-digit hexadecimal number and embed it in the AT command string
+	  // if the response from the device matches the expectation, return true; otherwise return false
+	  return tx_and_check_resp("OK+Set", "AT+ADVI%01X", static_cast<std::uint8_t>(interval));
+	}
+	// if the input `interval` was equal to `invalid_interval` (ensuring no attempt is made to set an invalid interval)
+	// directly return false, indicating that operation wasn't successful
+	return false;
+  }
+
+  advert_type HM10::get_advert_type()
+  {
+	// log a debug message to indicate that the function is attempting to check the advertising type
+	debug_log("Checking advertising type");
+
+	// `tx_and_check_resp` with parameters "OK+Get" and "AT+ADTY?"
+	// function sends the command "AT+ADTY?" to the HM10 device, waits for a response
+	// and checks if the response starts with "OK+Get"
+	// if it returns true (indicating the response was expected), enter the if block
+	if (tx_and_check_resp("OK+Get", "AT+ADTY?"))
+	{
+	  // extract a number from the response message using `ext_numb_from_resp`
+	  // convert the extracted number to an `advert_type` enumerator and return this value
+	  return static_cast<advert_type>(extract_number_from_resp());
+	}
+
+	// if the `if block` was not entered (meaning the response was not as expected)
+	// return an `invalid` enumerator of `advert_type` type, indicating that
+	// the advertising type could not be detemined
+	return advert_type::advert_type_invalid;
+  }
+
+  bool HM10::set_advert_type(advert_type type)
+  {
+	// check if the provided advertising type (`type`) is not equal to `invalid`
+	// this ensures that an attempt to set an invalid advertiding type is not made
+	if (type != advert_type::advert_type_invalid)
+	{
+	  // log a message stating the advertising type being set
+	  // convert `type` to a `uint8_t` and insert its value into the log message
+	  debug_log("Setting advertising type to %d", static_cast<std::uint8_t>(type));
+
+	  // call the member function `tx_and_check_resp` with a formatted AT command and the desired advertising
+	  // `tx_and_check_resp` sends the AT command "AT+ADTY<value>" (where <value> is the integer representing
+	  // of `type`) to the HM10 device, waits for a response and checks if the response starts with "OK+Set"
+	  // convert `type` to an integer and embed it in the AT command string.
+	  // if the response from the device matches the expectation, return value; otherwise return false
+	  return tx_and_check_resp("OK+Set", "AT_ADTY%d", static_cast<std::uint8_t>(type));
+	}
+
+	// if the input `type` was equal to `invalid` (ensuring no attempt is made to set and i
+	// directly return false, indicating that the operation was not successful
+	return false;
   }
 
 
