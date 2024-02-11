@@ -594,7 +594,7 @@ namespace HM10
 	return conn_interval::conn_invalid;
   }
 
-  conn_interval HM10::set_min_conn_interval(conn_interval interval)
+  bool HM10::set_min_conn_interval(conn_interval interval)
   {
 	if (interval != conn_interval::conn_invalid)
 	{
@@ -614,7 +614,7 @@ namespace HM10
 	return conn_interval::conn_invalid;
   }
 
-  conn_interval HM10::set_max_conn_interval(conn_interval max_interval)
+  bool HM10::set_max_conn_interval(conn_interval max_interval)
   {
 	if (max_interval != conn_interval::conn_invalid)
 	{
@@ -699,6 +699,7 @@ namespace HM10
 	{
 	  return static_cast<int>(extract_number_from_resp());
 	}
+	return -1;
   }
 
   bool HM10::set_slave_conn_latency(int latency)
@@ -785,6 +786,147 @@ namespace HM10
 	debug_log("Setting notifications state to %s", (enabled ? "true" : "false"));
 	return tx_and_check_resp("OK+Set", "AT+NOTI%d", (enabled ? 1 : 0));
   }
+
+  bool HM10::clear_last_connected()
+  {
+	return tx_and_check_resp("OK+CLEAR", "AT+CLEAR");
+  }
+
+  bool HM10::remove_bond_info()
+  {
+	return tx_and_check_resp("OK+ERASE", "AT+ERASE");
+  }
+
+  bool HM10::get_rx_gain()
+  {
+	debug_log("Getting Rx gain");
+	if (tx_and_check_resp("OK+Get", "AT+GAIN?"))
+	{
+	  return static_cast<bool>(extract_number_from_resp());
+	}
+	return false;
+  }
+
+  bool HM10::set_rx_gain(bool gain)
+  {
+	debug_log("Setting Rx gain to %s", (gain ? "enabled" : "disabled"));
+	return tx_and_check_resp("OK+Set", "AT+GAIN%d", (gain ? 1 : 0));
+  }
+
+  work_mode HM10::get_work_mode()
+  {
+	debug_log("Checking work mode");
+	if (tx_and_check_resp("OK+Get", "AT+MODE?"))
+	{
+	  return static_cast<work_mode>(extract_number_from_resp());
+	}
+	return work_mode::mode_invalid;
+  }
+
+  bool HM10::set_work_mode(work_mode new_mode)
+  {
+	if (new_mode != work_mode::mode_invalid)
+	{
+	  debug_log("Setting work mode to %d", static_cast<int>(new_mode));
+	  return tx_and_check_resp("OK+Set", "AT+MODE%d", static_cast<std::uint8_t>(new_mode));
+	}
+	return false;
+  }
+
+  bool HM10::get_automatic_mode()
+  {
+	debug_log("Checking if module is working in auto mode");
+	if (tx_and_check_resp("OK+Get", "AT+IMME?"))
+	{
+	  return static_cast<bool>(extract_number_from_resp() == 0);
+	}
+	return false;
+  }
+
+  bool HM10::set_automatic_mode(bool enable)
+  {
+	debug_log("Setting auto mode to %s", (enable ? "enabled" : "disabled"));
+	return tx_and_check_resp("OK+Set", "AT+IMME%d", (enable ? 0 : 1));
+  }
+
+  device_name HM10::get_name()
+  {
+	device_name name {};
+	debug_log("Getting device name");
+	if (tx_and_check_resp("OK+NAME", "AT+NAME?"))
+	{
+	  copystr_from_resp(8, name.name);
+	}
+	return name;
+  }
+
+  bool HM10::set_name(char const* new_name)
+  {
+	debug_log("Setting device name to %s", new_name);
+	return tx_and_check_resp("OK+Set", "AT+NAME%s", new_name);
+  }
+
+  output_power HM10::get_output_power()
+  {
+	debug_log("Getting output power");
+	if (tx_and_check_resp("OK+Get", "AT+PCTL?"))
+	{
+	  return static_cast<output_power>(extract_number_from_resp());
+	}
+	return output_power::output_power_invalid;
+  }
+
+  bool HM10::set_output_power(output_power new_power)
+  {
+	if (new_power != output_power::output_power_invalid)
+	{
+	  debug_log("Setting output power to %d", static_cast<int>(new_power));
+	  return tx_and_check_resp("OK+Set", "AT+PCTL%d", static_cast<std::uint8_t>(new_power));
+	}
+	return false;
+  }
+
+  std::uint16_t HM10::get_password()
+  {
+	debug_log("Getting the pairing password");
+	if (tx_and_check_resp("OK+Get", "AT+PASS?"))
+	{
+	  return static_cast<std::uint16_t>(extract_number_from_resp());
+	}
+	return std::uint16_t {};
+  }
+
+  bool HM10::set_password(std::uint16_t new_pass)
+  {
+	if (new_pass <= 999999)
+	{
+	  debug_log("Setting the password to %06d", (int)new_pass);
+	  return tx_and_check_resp("OK+Set", "AT+PASS%06d", new_pass);
+	}
+	return false;
+  }
+
+  module_power HM10::get_module_power()
+  {
+	debug_log("Getting module power");
+	if (tx_and_check_resp("OK+Get", "AT+POWE?"))
+	{
+	  return static_cast<module_power>(extract_number_from_resp());
+	}
+	return module_power::power_invalid;
+  }
+
+  bool HM10::set_module_power(module_power new_power)
+  {
+	if (new_power != module_power::power_invalid)
+	{
+	  debug_log("Setting module power to %d", static_cast<std::uint8_t>(new_power));
+	  return tx_and_check_resp("OK+Set", "AT+POWE%d", static_cast<std::uint8_t>(new_power));
+	}
+	return false;
+  }
+
+
 
 
 

@@ -106,7 +106,7 @@ public:
 
   // get/set whitelist MAC
   // id: 1-3
-  mac_address get_whitelist_mac(std::uint8_t id);
+  mac_address get_whitelisted_mac(std::uint8_t id);
   bool set_whitelisted_mac(std::uint8_t id, char const* address);
 
   // get/set connection slave latency
@@ -149,7 +149,7 @@ public:
   bool set_automatic_mode( bool en);
 
   // get/set device_name
-  device_name name();
+  device_name get_name();
   bool set_name( char const* new_name);
 
   // get/set output_power
@@ -159,7 +159,7 @@ public:
   // get/set password
   // password is 6 digits long
   //  e.g. if set to 5634 it was appear as 005634
-  std::uint16_t password();
+  std::uint16_t get_password();
   bool set_password(std::uint16_t password);
 
   // get/set module power
