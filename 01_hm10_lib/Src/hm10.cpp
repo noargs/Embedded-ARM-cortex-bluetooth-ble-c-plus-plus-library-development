@@ -926,8 +926,112 @@ namespace HM10
 	return false;
   }
 
+  bool HM10::get_auto_sleep()
+  {
+	debug_log("Checking auto sleep state");
+	if (tx_and_check_resp("OK+Get", "AT+PWRM?"))
+	{
+	  return static_cast<bool>(extract_number_from_resp());
+	}
+	return false;
+  }
 
+  bool HM10::set_auto_sleep(bool enabled)
+  {
+	debug_log("Setting auto sleep state to %s", (enabled ? "enabled" : "disabled"));
+	return tx_and_check_resp("OK+Set", "AT+PWRM%d", (enabled ? 0:1));
+  }
+
+  bool HM10::get_reliable_advertising( )
+  {
+	debug_log("Checking reliable advertising mode");
+	if (tx_and_check_resp("OK+Get", "AT+RELI?"))
+	{
+	  return static_cast<bool>(extract_number_from_resp());
+	}
+	return false;
+  }
+
+  bool HM10::set_reliable_advertising(bool enabled)
+  {
+	debug_log("Setting reliable advertising mode to %s", (enabled ? "enabled" : "disabled"));
+	return tx_and_check_resp("OK+Set", "AT+RELI%d", (enabled ? 1 : 0));
+  }
+
+  role HM10::get_role()
+  {
+	debug_log("Getting device role");
+	if (tx_and_check_resp("OK+Get", "AT+ROLE?"))
+	{
+	  return static_cast<role>(extract_number_from_resp());
+	}
+	return role::role_invalid;
+  }
+
+  bool HM10::set_role(role new_role)
+  {
+	debug_log("Setting device role to %d", static_cast<int>(new_role));
+	return tx_and_check_resp("OK+Set", "AT+ROLE%d", static_cast<std::uint8_t>(new_role));
+  }
+
+  bool HM10::start()
+  {
+	debug_log("Starting the module");
+	return tx_and_check_resp("OK+START", "AT+START");
+  }
+
+  bool HM10::sleep()
+  {
+	debug_log("Putting the module into sleep mode");
+	return tx_and_check_resp("OK+SLEEP", "AT+SLEEP");
+  }
+
+  bool HM10::wake_up()
+  {
+	debug_log("Waking the module up");
+	return tx_check_resp("OK+WAKE", "WAKEUP");
+  }
+
+  std::uint16_t HM10::get_service_uuid()
+  {
+	debug_log("Getting service UUID");
+	if (tx_and_check_resp("OK+Get", "AT+UUID?"))
+	{
+	  return static_cast<std::uint16_t>(extract_number_from_resp(9, 16));
+	}
+	return 0x0000;
+  }
+
+  bool HM10::set_service_uuid(std::uint16_t new_uuid)
+  {
+	if (new_uuid >= 0x0001 && new_uuid <= 0xFFFE)
+	{
+	  debug_log("Setting service UUID to 0x%04X", new_uuid);
+	  return tx_and_check_resp("OK+Set", "AT+UUID0x%04X", new_uuid);
+	}
+	return false;
+  }
 
 
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
