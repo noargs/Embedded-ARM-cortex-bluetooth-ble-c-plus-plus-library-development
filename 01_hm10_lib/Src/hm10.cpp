@@ -1012,6 +1012,63 @@ namespace HM10
 	return false;
   }
 
+  bool HM10::set_advertisement_data(char const* data)
+  {
+	debug_log("Setting advertisement data to %s", data);
+	return tx_and_check_resp("OK+Set", "AT+PACK%s", data);
+  }
+
+  device_version HM10::firmware_version()
+  {
+	device_version ver {};
+	debug_log("Getting firmware version");
+	copy_cmd_to_buff("AT+VERR?");
+	if (tx_and_rx())
+	{
+	  copystr_from_resp(0, ver.version);
+	}
+	return ver;
+  }
+
+  bool HM10::send_data(std::uint8_t const* data, std::size_t length, bool wait_for_tx)
+  {
+	// check if a connection is established by calling the `is_connected` member function
+	// if true, proceed with the next block, else skip to the return false statement at the end
+	if (is_connected())
+	{
+	  // set a member flag `m_tx_in_progress` to true, indicating that a transmission is about to take place
+	  m_tx_in_progress = true;
+
+	  // call the function `HAL_UART_Transmit_DMA` to initiate UART transmission using DMA.
+	  // pass the UART handler, the data pointer (with const cast) and the length of the data
+	  // store the result of the transmission attempt (likely a status code) in `transmit_reslut`
+	  int transmit_result = HAL_UART_Transmit_DMA(UART(), const_cast<std::uint8_t*>(data), length);
+
+	  // check if the transmission was initiated successfully (transmit_result == HAL_OK)
+	  if (transmit_result == HAL_OK)
+	  {
+		// if `wait_for_tx` is true, call the `wait_for_tx_cmplt` member function
+		// which might suspend the current task until the transmission is complete
+		if (wait_for_tx)
+		{
+		  wait_for_tx_cmplt();
+		}
+
+		// return true indicating that the data was sent (or is being sent if wait_for_tx is false)
+		return true;
+	  }
+	  else // if the transmission initiation failed
+	  {
+		// call the `tx_cmpltd` member function, to reset m_tx_in_progress flag
+		// or handle the transmission
+		tx_cmpltd();
+	  }
+	}
+	// return false either if the device is not connected
+	// or if the transmission initiation failed
+	return false;
+  }
+
 
 
 }
