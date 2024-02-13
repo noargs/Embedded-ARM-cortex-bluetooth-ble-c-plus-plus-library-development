@@ -9,6 +9,7 @@ DMA_HandleTypeDef hdma_usart1_tx;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
+extern void uart_idle_line_callback(void);
 
 void hm10_uart_init(void)
 {
@@ -140,5 +141,20 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
 
 	HAL_GPIO_Init(DEBUG_PORT, &GPIO_InitStruct);
   }
+}
 
+void USART1_IRQHandler(void)
+{
+  HAL_UART_IRQHandler(&huart1);
+}
+
+void DMA2_Stream2_IRQHandler(void)
+{
+  HAL_DMA_IRQ_Handler(&hdma_usart1_rx);
+}
+
+void DMA2_Stream7_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(&hdma_usart1_tx);
+  uart_idle_line_callback();
 }

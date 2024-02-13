@@ -1,5 +1,6 @@
 #include "main.h"
 #include "freertos.hpp"
+#include "hm10.hpp"
 
 
 #include "uart.h"

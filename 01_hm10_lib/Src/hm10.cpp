@@ -103,7 +103,7 @@ namespace HM10
 	if (!is_rx() && !handle_conn_message() && m_data_callback != nullptr)
 	{
 	  // check if the RF communication mode is enabled
-	  if (rf_comm_mode())
+	  if (get_rf_comm_mode())
 	  {
 		// if so, trigger the data callback, omitting the first byte
 		m_data_callback(m_message_buff + 1, m_message_buff[0]);
@@ -129,7 +129,7 @@ namespace HM10
 	m_rf_comm_mode = en;
   }
 
-  bool HM10::rf_comm_mode() const
+  bool HM10::get_rf_comm_mode() const
   {
 	return m_rf_comm_mode;
   }
@@ -229,7 +229,6 @@ namespace HM10
   }
 
   // check if the module is busy either receiving or transmitting
-
   bool HM10::is_busy() const
   {
 	return (is_rx() || is_tx());
@@ -306,9 +305,47 @@ namespace HM10
 	return true;
   }
 
+  // this method is to transmit data and check if received response matches `expected_response`
+  // returns a boolean: `true` if the received response matches `expected_response`, otherwise `false`
+  bool HM10::tx_and_check_resp(char const* expected_resp, char const* format, ...)
+  {
+	std::va_list args;
+
+	// initialise `args` to retrieve additional arguments after `format`
+	va_start(args, format);
+
+	// call `copy_cmd_to_buff_varg` to copy a command to the buffer, using a format string and the vardiac argument
+	copy_cmd_to_buff_varg(format, args);
+
+	// clean up the `args` object as it is no longer needed
+	va_end(args);
+
+	// log a debug message that indicated the data being transmitted, using `m_tx_buffer` for the actual data
+	debug_log("transmitting: %s", m_txbuffer);
+
+	// if `tx_and_rx()` returns `false` (indicating that transmission and reception (Tx/Rx) failed or an unexpected response
+	// immediately return `false`, indicating that this method has failed or received an unexpected response
+	if (!tx_and_rx())
+	{
+	  return false;
+	}
+
+	// log a debug message that indicates the received response, using `m_message_buff` for the actual received data
+	debug_log("response: %s", m_message_buff);
+
+	// call `compare_with_resp` with `expected_response` as the parameter
+	// returning `true` if the response matches `expected_response` and `false` otherwise
+	return compare_with_resp(expected_resp);
+  }
+
   void HM10::start_rx_to_buff()
   {
 	m_rx_in_progress = true;
+  }
+
+  void HM10::abort_receive()
+  {
+	m_rx_in_progress = false;
   }
 
   // `transmit_buff` attempts to transmit data using UART with DMA
@@ -348,6 +385,37 @@ namespace HM10
 	{
 	  vTaskDelay(1);
 	}
+  }
+
+  // this takes a `max_time` parameter, waits for a reception (Rx) to complete
+  // and returns a boolean indicating whether the Rx completed within the specified `max_time`
+  bool HM10::wait_for_rx_cmplt(std::uint32_t max_time) const
+  {
+	// couter variable to keep track of the elapsed wait time
+	std::uint32_t counter {0};
+
+	// enter a while loop that continues as long as `is_rx()` returns true (indicating on ongoing Rx)
+	// and the counter has not yet reached `max_time`
+	while (is_rx() && max_time > counter)
+	{
+	  // call `vTaskDelay(1)`, to suspend the task for 1 time unit to avoid busy-waiting
+	  // and thus yielding the processor to other tasks
+	  vTaskDelay(1);
+
+	  // increment the counter thus increasing the elapsed wait time
+	  counter++;
+	}
+
+	// return a boolean indicating whether the Rx completed within the specified `max_time`
+	// if `max_time` is still greater than the counter, the Rx completed within the time and true is returned
+	// otherwise, it indicates a timeout (Rx did not complete within `max_time`) and false is returned
+	return max_time > counter;
+  }
+
+  bool HM10::receive_to_buff()
+  {
+	start_rx_to_buff();
+	return wait_for_rx_cmplt();
   }
 
   bool HM10::reboot(bool waitforstartup)
@@ -974,22 +1042,24 @@ namespace HM10
 	return tx_and_check_resp("OK+Set", "AT+ROLE%d", static_cast<std::uint8_t>(new_role));
   }
 
-  bool HM10::start()
+  bond_mode HM10::get_bond_mode()
   {
-	debug_log("Starting the module");
-	return tx_and_check_resp("OK+START", "AT+START");
+	debug_log("Checking bonding mode");
+	if (tx_and_check_resp("OK+Get", "AT+TYPE?"))
+	{
+	  return static_cast<bond_mode>(extract_number_from_resp());
+	}
+	return bond_mode::mode_invalid;
   }
 
-  bool HM10::sleep()
+  bool HM10::set_bond_mode( bond_mode new_mode)
   {
-	debug_log("Putting the module into sleep mode");
-	return tx_and_check_resp("OK+SLEEP", "AT+SLEEP");
-  }
-
-  bool HM10::wake_up()
-  {
-	debug_log("Waking the module up");
-	return tx_check_resp("OK+WAKE", "WAKEUP");
+	if (new_mode != bond_mode::mode_invalid)
+	{
+	  debug_log("Setting bonding mode to %d", static_cast<int>(new_mode));
+	  return tx_and_check_resp("OK+Set", "AT+TYPE%d", static_cast<std::uint8_t>(new_mode));
+	}
+	return false;
   }
 
   std::uint16_t HM10::get_service_uuid()
@@ -1012,12 +1082,6 @@ namespace HM10
 	return false;
   }
 
-  bool HM10::set_advertisement_data(char const* data)
-  {
-	debug_log("Setting advertisement data to %s", data);
-	return tx_and_check_resp("OK+Set", "AT+PACK%s", data);
-  }
-
   device_version HM10::firmware_version()
   {
 	device_version ver {};
@@ -1028,6 +1092,46 @@ namespace HM10
 	  copystr_from_resp(0, ver.version);
 	}
 	return ver;
+  }
+
+  bool HM10::start()
+  {
+	debug_log("Starting the module");
+	return tx_and_check_resp("OK+START", "AT+START");
+  }
+
+  bool HM10::sleep()
+  {
+	debug_log("Putting the module into sleep mode");
+	return tx_and_check_resp("OK+SLEEP", "AT+SLEEP");
+  }
+
+  bool HM10::wake_up()
+  {
+	debug_log("Waking the module up");
+	return tx_and_check_resp("OK+WAKE", "WAKEUP");
+  }
+
+  bool HM10::get_uart_shutdown_on_sleep()
+  {
+	debug_log("Checking if UART will shutdown on sleep");
+	if (tx_and_check_resp("OK+Get", "AT+UART?"))
+	{
+	  return static_cast<bool>(extract_number_from_resp());
+	}
+	return false;
+  }
+
+  bool HM10::set_uart_shutdown_on_sleep(bool state)
+  {
+	debug_log("Setting UART shutdown on sleep to %s", (state ? "enabled" : "disabled"));
+	return tx_and_check_resp("OK+Set", "AT+UART%d", (state ? 1 : 0));
+  }
+
+  bool HM10::set_advertisement_data(char const* data)
+  {
+	debug_log("Setting advertisement data to %s", data);
+	return tx_and_check_resp("OK+Set", "AT+PACK%s", data);
   }
 
   bool HM10::send_data(std::uint8_t const* data, std::size_t length, bool wait_for_tx)
@@ -1069,7 +1173,29 @@ namespace HM10
 	return false;
   }
 
+  // extract a number from the message buffer, considering an offset and a numerical base
+  long HM10::extract_number_from_resp(std::size_t offset, int base) const
+  {
+	// using strtol (string and to long) to convert a substring of m_message_buff
+	// starting at the specified offset into a long integer, interpreting the
+	// charaters in the specified base
+	// Note: if base is 10, the conversion is performed considering decimal digits
+	// if it's 16, hexadecimal digits are considered, and so on.
+	// (e.g. "0x" or "0X" for hex, "0" for octal, and decimal otherwise)
+	return std::strtol(&m_message_buff[0] + offset, nullptr, base);
+  }
 
+  void HM10::set_uart_baudrate(std::uint32_t new_baud) const
+  {
+	// set the Baudrate member of the UART_InitTypeDef structure
+	// (accessed via the init member of the UART_HandleTypeDef structure returned by UART())
+	// to the new baud rate passed as a paramter to the function
+	UART()->Init.BaudRate = new_baud;
+
+	// call the HAL_UART_Init function from the HAL (Hardware Abstration Layer) library to
+	// initialise the UART peripheral with the updated baudrate
+	HAL_UART_Init(UART());
+  }
 
 }
 

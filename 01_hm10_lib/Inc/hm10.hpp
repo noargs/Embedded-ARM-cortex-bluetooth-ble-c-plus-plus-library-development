@@ -1,15 +1,19 @@
 #pragma once
 
+#include "hm10_config.hpp"
+#include "main.h"
+
 #include <cstdarg>
 #include <cstdint>
 #include <cstdlib>
 
-#include "hm10_config.hpp"
-#include "hm10_debug.hpp"
-#include "main.h"
-
 #include "FreeRTOS.h"
 #include "task.h"
+#include "hm10_debug.hpp"
+
+#include "uart.h"
+
+
 
 #define HM10_BUFFER_SIZE      128
 
@@ -188,7 +192,7 @@ public:
 
   /* get/set RF communication mode */
   void set_rf_comm_mode (bool en);
-  bool rf_comm_mode() const;
+  bool get_rf_comm_mode() const;
 
   // get device_version
   device_version firmware_version();
@@ -198,7 +202,7 @@ public:
   bool wake_up();
 
   // get/set UART sleep on module shutdown
-  bool uart_shutdown_on_sleep();
+  bool get_uart_shutdown_on_sleep();
   bool set_uart_shutdown_on_sleep( bool state);
 
   // set Advertisement data

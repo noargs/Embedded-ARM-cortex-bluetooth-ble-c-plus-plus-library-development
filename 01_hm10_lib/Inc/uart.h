@@ -11,6 +11,7 @@ void hm10_uart_init(void);
 void debug_uart_init(void);
 void uart_write(int ch);
 
+extern UART_HandleTypeDef huart1;
 
 #ifdef __cplusplus
   }
