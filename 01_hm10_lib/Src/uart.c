@@ -150,7 +150,7 @@ void USART1_IRQHandler(void)
 
 void DMA2_Stream2_IRQHandler(void)
 {
-  HAL_DMA_IRQ_Handler(&hdma_usart1_rx);
+  HAL_DMA_IRQHandler(&hdma_usart1_rx);
 }
 
 void DMA2_Stream7_IRQHandler(void)

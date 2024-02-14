@@ -28,7 +28,7 @@ void system_task(void* argument)
   while(!dev_alive)
   {
 	dev_alive = hm10.is_alive();
-	debug_log("Device Alive? %s\n", dev_alive ? "YES" : "no");
+	debug_log("Device Alive? %s\n", dev_alive ? "Yes" : "No");
 	vTaskDelay(100);
   }
 
@@ -38,7 +38,38 @@ void system_task(void* argument)
   }
 }
 
-void uart_idle_line_callback(void)
+// Callback function executed when a UART transmission is completed
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef* huart)
 {
+  // check if the UART handle corresponds to the HM10 modul's UART
+  if (huart == &hm10_uart)
+  {
+	// notify the HM10 module that transmission is completed
+	hm10.tx_cmpltd();
+  }
+}
+
+// Callback function executed when a UART error occurs
+void HAL_UART_ErrorCallback(UART_HandleTypeDef* huart)
+{
+  // check if the UART handle corresponds to the HM10 module's UART
+  if (huart == &hm10_uart)
+  {
+	// print the error code in both decimal and hexadecimal formats
+	debug_log("UART Comm Error - Code %d (0x%02X)\n", huart->ErrorCode, huart->ErrorCode);
+
+  }
+}
+
+extern "C" void uart_idle_line_callback(void)
+{
+  // check if the UART's idle flag is set for the HM10 module's UART
+  if (__HAL_UART_GET_FLAG(&hm10_uart, UART_FLAG_IDLE))
+  {
+	// clear the idle flag for the HM10 module's UART.
+	__HAL_UART_CLEAR_IDLEFLAG(&hm10_uart);
+	// notify the HM10 module that reception is completed
+	hm10.rx_cmpltd();
+  }
 
 }
