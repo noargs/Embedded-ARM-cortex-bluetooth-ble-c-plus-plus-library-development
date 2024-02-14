@@ -30,26 +30,26 @@ namespace HM10
   }
 
   /* sets the data callback function */
-  void HM10::data_callback(data_callback_t callback)
+  void HM10::set_data_callback(data_callback_t callback)
   {
 	m_data_callback = callback;
   }
 
   /* sets the device connected callback function */
-  void HM10::device_connected_callback(device_connected_t callback)
+  void HM10::set_device_connected_callback(device_connected_t callback)
   {
 	m_device_conn_callback = callback;
   }
 
   /* sets the device disconneted callback function */
-  void HM10::device_disconnected_callback(device_disconnected_t callback)
+  void HM10::set_device_disconnected_callback(device_disconnected_t callback)
   {
 	m_device_disconn_callback = callback;
   }
 
   int HM10::start_uart()
   {
-	debug_log("UART Rx Started");
+	debug_log("System init...");
 	__HAL_UART_ENABLE_IT(UART(), UART_IT_IDLE);
 	return HAL_UART_Receive_DMA(UART(), reinterpret_cast<uint8_t*>(&m_rxbuffer[0]), buffer_size());
   }
@@ -117,21 +117,6 @@ namespace HM10
 
 	// flag that the Rx operation is no longer in progress
 	m_rx_in_progress = false;
-  }
-
-  void HM10::tx_cmpltd()
-  {
-	m_tx_in_progress = false;
-  }
-
-  void HM10::set_rf_comm_mode(bool en)
-  {
-	m_rf_comm_mode = en;
-  }
-
-  bool HM10::get_rf_comm_mode() const
-  {
-	return m_rf_comm_mode;
   }
 
   // copy a string from the message buffer to another destination, considering an offset
@@ -214,6 +199,21 @@ namespace HM10
 
 	// if neither "OK+CONN" nor "OK+LOST" were matched, return false indicating no relevant message was handled
 	return false;
+  }
+
+  void HM10::tx_cmpltd()
+  {
+	m_tx_in_progress = false;
+  }
+
+  void HM10::set_rf_comm_mode(bool en)
+  {
+	m_rf_comm_mode = en;
+  }
+
+  bool HM10::get_rf_comm_mode() const
+  {
+	return m_rf_comm_mode;
   }
 
   // check if module is in receiving mode
@@ -1007,7 +1007,7 @@ namespace HM10
   bool HM10::set_auto_sleep(bool enabled)
   {
 	debug_log("Setting auto sleep state to %s", (enabled ? "enabled" : "disabled"));
-	return tx_and_check_resp("OK+Set", "AT+PWRM%d", (enabled ? 0:1));
+	return tx_and_check_resp("OK+Set", "AT+PWRM%d", (enabled ? 0 : 1));
   }
 
   bool HM10::get_reliable_advertising( )

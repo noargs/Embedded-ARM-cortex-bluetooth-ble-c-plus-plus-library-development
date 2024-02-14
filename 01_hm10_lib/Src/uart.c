@@ -11,6 +11,7 @@ UART_HandleTypeDef huart2;
 
 extern void uart_idle_line_callback(void);
 
+#define DMA2EN                   (1U << 22)
 
 void hm10_uart_init(void)
 {
@@ -68,7 +69,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
 	__HAL_RCC_USART1_CLK_ENABLE();
 
 	// UART GPIO Config
-	GPIO_InitStruct.Pin   = HM10_RX_PIN | HM10_TX_PIN;
+	GPIO_InitStruct.Pin   = HM10_TX_PIN | HM10_RX_PIN;
 	GPIO_InitStruct.Mode  = GPIO_MODE_AF_PP;
 	GPIO_InitStruct.Pull  = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
@@ -134,7 +135,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
 	__HAL_RCC_USART2_CLK_ENABLE();
 
 	// UART GPIO Config
-	GPIO_InitStruct.Pin   = DEBUG_RX_PIN | DEBUG_TX_PIN;
+	GPIO_InitStruct.Pin   = DEBUG_TX_PIN | DEBUG_RX_PIN;
 	GPIO_InitStruct.Mode  = GPIO_MODE_AF_PP;
 	GPIO_InitStruct.Pull  = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
@@ -142,6 +143,16 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
 
 	HAL_GPIO_Init(DEBUG_PORT, &GPIO_InitStruct);
   }
+}
+
+void dma_init(void)
+{
+  /* Enable clock access to DMA2 */
+  RCC->AHB1ENR |= DMA2EN;
+
+  /* Enable DMA stream interrupts */
+  NVIC_EnableIRQ(DMA2_Stream2_IRQn);
+  NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 }
 
 void USART1_IRQHandler(void)

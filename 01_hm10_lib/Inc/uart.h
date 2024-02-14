@@ -10,6 +10,7 @@
 void hm10_uart_init(void);
 void debug_uart_init(void);
 void uart_write(int ch);
+void dma_init(void);
 
 extern UART_HandleTypeDef huart1;
 

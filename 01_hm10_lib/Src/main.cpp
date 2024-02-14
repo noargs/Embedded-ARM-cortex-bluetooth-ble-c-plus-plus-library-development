@@ -8,7 +8,7 @@
 int main(void)
 {
   HAL_Init();
-
+  dma_init();
   hm10_uart_init();
   debug_uart_init();
 
