@@ -1,12 +1,23 @@
 #include "main.h"
 #include "hm10_debug.hpp"
 #include "hm10.hpp"
+#include <cstring>
 
 #define hm10_uart                huart1
 
+#define MSG_BUFF_SIZE            100
+
 uint32_t task_profiler;
 
+char message_buffer[MSG_BUFF_SIZE]{};
+
 HM10::HM10 hm10(&hm10_uart);
+
+bool msg_rcvd = false;
+
+void data_callback(char* data, std::size_t length);
+void device_connected_callback(HM10::mac_address const& mac);
+void device_disconnected_callback();
 
 void system_task(void* argument)
 {
@@ -71,5 +82,27 @@ extern "C" void uart_idle_line_callback(void)
 	// notify the HM10 module that reception is completed
 	hm10.rx_cmpltd();
   }
+}
 
+void data_callback(char* data, std::size_t length)
+{
+  // copy the received data into the global message buffer
+  std::memcpy(message_buffer, data, length);
+
+  // set the global flag indicating that a message has been received
+  msg_rcvd = true;
+}
+
+// callback function executed when a device is connected
+void device_connected_callback(HM10::mac_address const& mac)
+{
+  // print the MAC address of the connected master device
+  debug_log("Connected to master with MAC address %s\n", mac.mac_address);
+}
+
+// callback function executed when a device is disconnected
+void device_disconnected_callback()
+{
+  // print a message indicating the disconnection from the master device
+  debug_log("Disconnected from device!\n");
 }

@@ -30,19 +30,19 @@ namespace HM10
   }
 
   /* sets the data callback function */
-  void HM10::set_data_callback(data_callback_t callback)
+  void HM10::data_callback(data_callback_t callback)
   {
 	m_data_callback = callback;
   }
 
   /* sets the device connected callback function */
-  void HM10::set_device_conn_callback(device_connected_t callback)
+  void HM10::device_connected_callback(device_connected_t callback)
   {
 	m_device_conn_callback = callback;
   }
 
   /* sets the device disconneted callback function */
-  void HM10::set_device_disconn_callback(device_disconnected_t callback)
+  void HM10::device_disconnected_callback(device_disconnected_t callback)
   {
 	m_device_disconn_callback = callback;
   }

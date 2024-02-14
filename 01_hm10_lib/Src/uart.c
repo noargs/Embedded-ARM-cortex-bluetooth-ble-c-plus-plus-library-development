@@ -11,6 +11,7 @@ UART_HandleTypeDef huart2;
 
 extern void uart_idle_line_callback(void);
 
+
 void hm10_uart_init(void)
 {
   huart1.Instance = USART1;

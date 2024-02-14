@@ -47,13 +47,13 @@ public:
   std::size_t buffer_size() const;
 
   // set callback for data reception
-  void set_data_callback(data_callback_t callback);
+  void data_callback(data_callback_t callback);
 
   // set callback for device connection
-  void set_device_conn_callback(device_connected_t callback);
+  void device_connected_callback(device_connected_t callback);
 
   // set callback for device disconnection
-  void set_device_disconn_callback(device_disconnected_t callback);
+  void device_disconnected_callback(device_disconnected_t callback);
 
   // Boot UART
   int start_uart();
